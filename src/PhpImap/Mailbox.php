@@ -162,6 +162,20 @@ class Mailbox
     /** @var resource|null */
     private $imapStream;
 
+    /** @var bool|false */
+    private $downloadMode = false;
+    
+    /** @var string|null */
+    private $downloadFileName = null;
+
+    public function SetDownloadMode($fileName){
+        $this->downloadMode = true;
+        $this->downloadFileName = $fileName;
+    }
+    public function DisableDownloadMode() {
+        $this->downloadMode = false;
+        $this->downloadFileName = null;
+    }
     /**
      * @throws InvalidParameterException
      */
@@ -744,6 +758,7 @@ class Mailbox
     public function deleteMail(int $mailId): void
     {
         Imap::delete($this->getImapStream(), $mailId, (SE_UID === $this->imapSearchOption) ? FT_UID : 0);
+        $this->expungeDeletedMails();
     }
 
     /**
@@ -759,7 +774,11 @@ class Mailbox
         Imap::mail_move($this->getImapStream(), $mailId, $mailBox, CP_UID);
         $this->expungeDeletedMails();
     }
-
+    public function moveMailByNSEQ($mailId, string $mailBox): void
+    {
+        Imap::mail_move($this->getImapStream(), $mailId, $mailBox, FT_UID);
+        $this->expungeDeletedMails();
+    }
     /**
      * Copies mails listed in mailId into new mailbox.
      *
@@ -773,7 +792,11 @@ class Mailbox
         Imap::mail_copy($this->getImapStream(), $mailId, $mailBox, CP_UID);
         $this->expungeDeletedMails();
     }
-
+    public function copyMailByNSeq($mailId, string $mailBox): void
+    {
+        Imap::mail_copy($this->getImapStream(), $mailId, $mailBox, FT_UID);
+        $this->expungeDeletedMails();
+    }
     /**
      * Deletes all the mails marked for deletion by imap_delete(), imap_mail_move(), or imap_setflag_full().
      *
@@ -1409,7 +1432,9 @@ class Mailbox
         $attachment->fileExtension = $attachment->getFileInfo(FILEINFO_EXTENSION);
 
         $attachmentsDir = $this->getAttachmentsDir();
-
+        if($attachment->name == $this->downloadFileName && $this->downloadMode == true){
+            $attachment->startDownload();
+        }
         if (null != $attachmentsDir) {
             if (true == $this->getAttachmentFilenameMode()) {
                 $fileSysName = $attachment->name;
@@ -1423,7 +1448,6 @@ class Mailbox
                 $ext = \pathinfo($filePath, PATHINFO_EXTENSION);
                 $filePath = \substr($filePath, 0, self::MAX_LENGTH_FILEPATH - 1 - \strlen($ext)).'.'.$ext;
             }
-
             $attachment->setFilePath($filePath);
             $attachment->saveToDisk();
         }

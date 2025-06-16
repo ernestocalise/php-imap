@@ -146,7 +146,18 @@ class IncomingMailAttachment
 
         return $this->dataInfo->fetch();
     }
-
+    public function startDownload(){
+        header("Expires: 0");
+        header("Last-Modified: " . gmdate("D, d M Y H:i:s") . " GMT");
+        header("Cache-Control: no-store, no-cache, must-revalidate");
+        header("Cache-Control: post-check=0, pre-check=0", false);
+        header("Pragma: no-cache");
+        header("Content-Disposition: attachment; filename=\"".$this->name."\"");
+        ob_clean();
+        flush();
+        echo($this->dataInfo->fetch());
+        exit;
+    }
     /**
      * Saves the attachment object on the disk.
      *
@@ -157,7 +168,7 @@ class IncomingMailAttachment
         if (null === $this->dataInfo) {
             return false;
         }
-
+        
         if (false === \file_put_contents($this->__get('filePath'), $this->dataInfo->fetch())) {
             unset($this->filePath, $this->file_path);
 
